@@ -1,0 +1,29 @@
+# Estas configuraciones se eligen para tomar imágenes para calibrar SLM
+
+quiet       # evito salida de texto con datos de config
+#verbose    # anulo quiet
+
+no-banner # Sin barra con info en foto
+
+greyscale # escala grises (r=g=b)
+
+# The image source - In this case we are capturing frames from a TV channel
+device     "v4l2:/dev/video0"
+input      0
+#frequency  670.90
+#palette    PNG
+#resolution 768x576
+
+#device /dev/video1  # Image source (/dev/video1 es cámara-lap, /dev/video2 es cámara-usb)
+
+skip   10	# Skip the first ten frames.
+frames 1	# And capture one.
+
+# Save a copy for the archive. The archive contains a folder for each
+# day of images. First we create the folder if it doesn't already exist.
+#exec "mkdir ~/imgSLM 2> /dev/null"
+#exec "mkdir ~/imgSLM/%Y-%m-%d 2> /dev/null"
+
+# Then save the image into it.
+#save "~/imgSLM/%Y-%m-%d/01-%Y%m%d-%H%M%S.jpeg"
+#save /home/santiago/imgSLM/asdf.jpeg #este si sirve
