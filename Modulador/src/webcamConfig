@@ -27,3 +27,9 @@ frames 1	# And capture one.
 # Then save the image into it.
 #save "~/imgSLM/%Y-%m-%d/01-%Y%m%d-%H%M%S.jpeg"
 #save /home/santiago/imgSLM/asdf.jpeg #este si sirve
+
+# Estos son para la cámara del lab, pero elige cuales cambiar escribiendo 'fswebcam --list-controls'
+#set brightness=50%
+#set "Gain, Automatic"=False
+#set Sharpness=3
+#set Exposure=3%
