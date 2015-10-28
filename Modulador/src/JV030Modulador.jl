@@ -2,8 +2,8 @@
 
 module Modulador
 
-using Images, Colors#, ImageView (en julia 0.4.0 no sirve ImageView (27oct15))
-using FixedPointNumbers
+using PyPlot, Images, ImageView
+using FixedPointNumbers, Dates
 
 export blazeMat, grayImage, monitor2, inicia, finaliza, thetaMat, faseMatInt, escalon, capturaImg, funBesselJ, rapidBesselJ, thetaMatInt #, canvas2ndScreen, monitor2canvas
 
@@ -15,7 +15,7 @@ dir1=joinpath(dir,"PrepMonit1")
 dir2=joinpath(dir,"PrepMonit2")
 dir2canvas=joinpath(dir,"PrepMonit2canvas")
 dir3=joinpath(dir,"PrepMonit3")
-dir4=joinpath(dir,"imagen.png")
+dir4=joinpath(dir,"imagen")
 
 const nombre_improbable_2pi=readdlm(joinpath(dir,"dospi"),Int64)[end]
 
@@ -23,32 +23,33 @@ const nombre_improbable_2pi=readdlm(joinpath(dir,"dospi"),Int64)[end]
 
 #La función blazeMat da un arreglo de nVer × nHor enteros que representa una rejilla blaze. El tercer argumento que toma la función es el entero que representa la fase 2π y el cuarto argumento es el periodo (en pixeles).
 #La función grayImage toma como argumento una matriz de enteros de nVer × nHor(como la que genera blazeMat) y la convierte en una imagen.
-
-function blazeMat(cols::Integer, rengs::Integer, dosPi::Integer, periodo::Integer)
-    matInt=zeros(Int64,rengs,cols)
-    reng=mod( round(Int64,  1+(dosPi-1)*mod(round(Int64,linspace(0,cols-1,cols)),periodo)/(periodo-1)   ) , dosPi)
-    for i=1:rengs
-        matInt[i,:]=reng
+function blazeMat(nVer::Integer, nHor::Integer, dosPi::Integer, periodo::Integer)
+    matInt=zeros(Int64,nHor,nVer)
+    for i=1:nHor
+        for j=1:nVer
+            matInt[i,j]=int64(   mod1(  (mod1(j,periodo) -periodo) *(dosPi-1)/(periodo-1)  , dosPi    )  )
+        end
     end
     matInt
-    convert(Array{UInt8,2}, matInt)
 end
 blazeMat(dosPi::Integer, periodo::Integer)=blazeMat(800, 600, dosPi, periodo)
 blazeMat(periodo::Integer)=blazeMat(800, 600, nombre_improbable_2pi, periodo)
 
-
-
-function grayImage(matInt::Array{Int64,2}) # Toma matriz de Int64 y la convierte en una imagen 8-bits escala grises.
-    mata3=convert(Array{UInt8,2}, matInt);
-    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, mata3)
+function grayImage(matInt::Array{Int64,2})
+    nVer=size(matInt)[1]
+    nHor=size(matInt)[2]
+    matGray=zeros(Gray{Ufixed8},nVer,nHor)
+    for i=1:nVer
+        for j=1:nHor
+            matGray[i,j]=Gray{Ufixed8}(matInt[i,j])
+        end
+    end
     Image(matGray)
 end
-function grayImage(matUInt::Array{UInt8,2}) # Igual que el método anterior pero con matriz de UInt8
-    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, matUInt)
-    Image(matGray)
-end
 
-Images.imwrite(grayImage(ones(Int64,600,800)),dir4) # guarda imágen en blanco para proyectar en modulador al iniciar.
+img1=ImageView.view(grayImage(ones(Int64,600,800)))
+destroy(toplevel(img1[1]))
+write_to_png(img1[1],dir4)
 
 
 println("Bienvenido al módulo que controla el SLM.
@@ -72,7 +73,9 @@ end
 function monitor2(imagen::Image)
     ##### Esto es para versión con Eye of Gnome
     if size(imagen.data)==(600,800)
-        Images.imwrite(imagen,dir4)
+        img1=ImageView.view(imagen)
+        destroy(toplevel(img1[1]))
+        write_to_png(img1[1],dir4)
     else
         error("Deben ser imágenes de 800x600")
     end
@@ -81,12 +84,15 @@ function monitor2(imagen::Image)
 end
 
 function finaliza()
-    Images.imwrite(grayImage(ones(Int64,600,800)),dir4)
+    img1=ImageView.view(grayImage(ones(Int64,600,800)))
+    destroy(toplevel(img1[1]))
+    write_to_png(img1[1],dir4)
     run(`bash $(Modulador.dir3)`)
 end
 
 
-##### Esto es para versión con Canvas (no fullscreen, en julia 0.4.0 no sirve ImageView (27oct15))
+##### Esto es para versión con Canvas (no fullscreen)
+##### Esto es para versión con Canvas (no fullscreen) 
 #run(`bash $dir2canvas`)
 #const canvas2ndScreen=ImageView.view(grayImage(ones(Int64,800,600)))   
     # Esta constante es el canvas (imagen) del segundo monitor, por lo que los run son para abrirlo en el 2do monitor
@@ -94,8 +100,8 @@ end
 #function monitor2canvas(imagen::Image)    
 #    ImageView.view(canvas2ndScreen[1],imagen)
 #end
-##### Esto es para versión con Canvas (no fullscreen, en julia 0.4.0 no sirve ImageView (27oct15))
-
+##### Esto es para versión con Canvas (no fullscreen) 
+##### Esto es para versión con Canvas (no fullscreen)
 
 
 
@@ -146,9 +152,9 @@ function escalon(nVer::Integer, nHor::Integer, fondo::Integer, dosPi::Integer, p
     matInt=zeros(Int64,nHor,nVer)
     red=fondo+(dosPi-fondo)*int64(mod(int64(linspace(1,nVer,nVer))-1,periodo)/(periodo))
     for i=1:nHor
-        matInt[i,:]=red
+        matInt[i,1:nVer]=red
     end
-    convert(Array{UInt8,2}, matInt)
+    matInt
 end
 escalon(fondo::Integer, dosPi::Integer, periodo::Integer)=escalon(800,600,fondo,dosPi,periodo)
 escalon(dosPi::Integer, periodo::Integer)=escalon(800,600,1,dosPi,periodo)
@@ -162,7 +168,7 @@ function calibrar()
     println("Recuerda correr 'finalizaCalib()' al final para borrar imágenes")
     println("Al finalizar la calibración debes reiniciar Julia para que se tomen en cuenta los cambios")
     calibrarAux()
-    dir7=joinpath(dirCal,string(now()))
+    dir7=joinpath(dirCal,string(today()))
     ima1=float(Images.green(Images.data(Images.imread(dir7*"--1.jpeg"))))
     ima2=similar(ima1)
     lista=zeros(256)
@@ -195,7 +201,7 @@ end
 ### La siguiente función es para capturar imágenes, para configuración ver Modulador/src/webcamConfig
 function capturaImg2(n::Integer) #ojo, esta solo sirve para calibrar, usa únicamente el otro método
     dir5=joinpath(dir,"webcamConfig")
-    dir6=joinpath(dirCal,string(now())*"--$n.jpeg")
+    dir6=joinpath(dirCal,string(today())*"--$n.jpeg")
     run(`fswebcam -c $(dir5) --save $(dir6)`)
 end
 dirCap=joinpath(LOAD_PATH[length(LOAD_PATH)],"Modulador","capturas")
@@ -227,9 +233,11 @@ end
 
 
 ### Lo siguiente es para darle vórtice al haz para (junto con axicón) generar el Bessel
-function thetaMatInt(n,th)
-    mod(n*(faseMatInt(thetaMat(th))-1),nombre_improbable_2pi)+1
+function thetaMatInt(n,dospi,th)
+    mod(n*(faseMatInt(thetaMat(th))-1),dospi)+1
 end
-thetaMatInt(n)=thetaMatInt(n,0)
+thetaMatInt(n,dospi)=thetaMatInt(n,dospi,0)
+thetaMatInt(n)=thetaMatInt(n,nombre_improbable_2pi,0)
+
 
 end
