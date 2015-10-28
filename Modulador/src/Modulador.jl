@@ -2,8 +2,8 @@
 
 module Modulador
 
-using PyPlot, Images, ImageView
-using FixedPointNumbers, Dates
+using Images, Colors, ImageView
+using FixedPointNumbers
 
 export blazeMat, grayImage, monitor2, inicia, finaliza, thetaMat, faseMatInt, escalon, capturaImg, funBesselJ, rapidBesselJ, thetaMatInt #, canvas2ndScreen, monitor2canvas
 
@@ -23,30 +23,33 @@ const nombre_improbable_2pi=readdlm(joinpath(dir,"dospi"),Int64)[end]
 
 #La función blazeMat da un arreglo de nVer × nHor enteros que representa una rejilla blaze. El tercer argumento que toma la función es el entero que representa la fase 2π y el cuarto argumento es el periodo (en pixeles).
 #La función grayImage toma como argumento una matriz de enteros de nVer × nHor(como la que genera blazeMat) y la convierte en una imagen.
-function blazeMat(nVer::Integer, nHor::Integer, dosPi::Integer, periodo::Integer)
-    matInt=zeros(Int64,nHor,nVer)
-    for i=1:nHor
-        for j=1:nVer
-            matInt[i,j]=int64(   mod1(  (mod1(j,periodo) -periodo) *(dosPi-1)/(periodo-1)  , dosPi    )  )
-        end
+
+function blazeMat(cols::Integer, rengs::Integer, dosPi::Integer, periodo::Integer)
+    matInt=zeros(Int64,rengs,cols)
+    reng=mod( round(Int64,  1+(dosPi-1)*mod(round(Int64,linspace(0,cols-1,cols)),periodo)/(periodo-1)   ) , dosPi)
+    for i=1:rengs
+        matInt[i,:]=reng
     end
     matInt
+    convert(Array{UInt8,2}, matInt)
 end
 blazeMat(dosPi::Integer, periodo::Integer)=blazeMat(800, 600, dosPi, periodo)
 blazeMat(periodo::Integer)=blazeMat(800, 600, nombre_improbable_2pi, periodo)
 
-function grayImage(matInt::Array{Int64,2})
-    nVer=size(matInt)[1]
-    nHor=size(matInt)[2]
-    matGray=zeros(Gray{Ufixed8},nVer,nHor)
-    for i=1:nVer
-        for j=1:nHor
-            matGray[i,j]=Gray{Ufixed8}(matInt[i,j])
-        end
-    end
+
+
+function grayImage(matInt::Array{Int64,2}) ######cambié para v4.0
+    mata3=convert(Array{UInt8,2}, matInt);
+    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, mata3)
+    Image(matGray)
+end
+function grayImage(matUInt::Array{UInt8,2}) ######cambié para v4.0
+    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, matUInt)
     Image(matGray)
 end
 
+
+#Images.imwrite(grayImage(ones(Int64,600,800)),dir4)
 img1=ImageView.view(grayImage(ones(Int64,600,800)))
 destroy(toplevel(img1[1]))
 write_to_png(img1[1],dir4)
@@ -168,7 +171,7 @@ function calibrar()
     println("Recuerda correr 'finalizaCalib()' al final para borrar imágenes")
     println("Al finalizar la calibración debes reiniciar Julia para que se tomen en cuenta los cambios")
     calibrarAux()
-    dir7=joinpath(dirCal,string(today()))
+    dir7=joinpath(dirCal,string(now()))
     ima1=float(Images.green(Images.data(Images.imread(dir7*"--1.jpeg"))))
     ima2=similar(ima1)
     lista=zeros(256)
@@ -201,7 +204,7 @@ end
 ### La siguiente función es para capturar imágenes, para configuración ver Modulador/src/webcamConfig
 function capturaImg2(n::Integer) #ojo, esta solo sirve para calibrar, usa únicamente el otro método
     dir5=joinpath(dir,"webcamConfig")
-    dir6=joinpath(dirCal,string(today())*"--$n.jpeg")
+    dir6=joinpath(dirCal,string(now())*"--$n.jpeg")
     run(`fswebcam -c $(dir5) --save $(dir6)`)
 end
 dirCap=joinpath(LOAD_PATH[length(LOAD_PATH)],"Modulador","capturas")
@@ -233,11 +236,9 @@ end
 
 
 ### Lo siguiente es para darle vórtice al haz para (junto con axicón) generar el Bessel
-function thetaMatInt(n,dospi,th)
-    mod(n*(faseMatInt(thetaMat(th))-1),dospi)+1
+function thetaMatInt(n,th)
+    mod(n*(faseMatInt(thetaMat(th))-1),nombre_improbable_2pi)+1
 end
-thetaMatInt(n,dospi)=thetaMatInt(n,dospi,0)
-thetaMatInt(n)=thetaMatInt(n,nombre_improbable_2pi,0)
-
+thetaMatInt(n)=thetaMatInt(n,0)
 
 end
