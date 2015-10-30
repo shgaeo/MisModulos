@@ -17,7 +17,12 @@ dir2canvas=joinpath(dir,"PrepMonit2canvas")
 dir3=joinpath(dir,"PrepMonit3")
 dir4=joinpath(dir,"imagen.png")
 
-const nombre_improbable_2pi=readdlm(joinpath(dir,"dospi"),Int64)[end]
+println("Bienvenido al módulo que controla el SLM.
+    Para empezar utiliza la función inicia.
+    ¡¡Recuerda correr la función finaliza al terminar tu sesión!!")
+println("¿Qué long. de onda desea utilizar (1), (2), (3) ó (4)? \n 1 -> ninguna \n 2 -> 911 nm \n 3 -> 780 nm \n 4 -> 633 nm")
+n=parse(Int64,readline())
+const nombre_improbable_2pi=round(Int64, readcsv(joinpath(dir,"dospi"))[n])
 
 #Las siguientes funciones las saqué del notebook 'Pruebas-004_(generarImagenesGrises)' en ~/Documentos/Cosas-Ijulia 
 
@@ -51,9 +56,7 @@ end
 Images.imwrite(grayImage(ones(Int64,600,800)),dir4) # guarda imágen en blanco para proyectar en modulador al iniciar.
 
 
-println("Bienvenido al módulo que controla el SLM.
-    Para empezar utiliza la función inicia.
-    ¡¡Recuerda correr la función finaliza al terminar tu sesión!!")
+
 
 
 function inicia()
@@ -104,8 +107,8 @@ end
 function thetaMat(th) # th son los grados por los cuales se puede rotar el holograma
     # esta función da una matriz cuyas entradas representan los ángulos (van de -π a π)
     # recuerda que la convención para matrices es invertir eje Y, por eso valores negativos quedan arriba
-    x=integer(ones(600)*linspace(-399,400,800)')
-    y=integer(linspace(-299,300,600)*ones(800)')
+    x=round(Int64, ones(600)*linspace(-399,400,800)' )
+    y=round(Int64, linspace(-299,300,600)*ones(800)' )
     xp=cos(th*π/180)*x-sin(th*π/180)*y # rotacion
     yp=sin(th*pi/180)*x+cos(th*pi/180)*y
     atan2(yp,xp) 
@@ -128,7 +131,7 @@ function faseMatInt(z::Matrix,gray2pi::Int64,gray0::Int64)
     z=(z-minimum(z))/(maximum(z-minimum(z))) # Normalizo de 0 a 1
     z=((z)*(gray2pi-gray0)) #Renormalizo min=0 max=255
     z=mod(z,256)+gray0 #Obtengo módulo, ahora min=gray0 y max=gray2pi
-    return(int64(z)) # finalmente convierto a enteros 
+    return(round(Int64,z)) # finalmente convierto a enteros 
 end
 faseMatInt(z::Matrix)=faseMatInt(z,nombre_improbable_2pi,1) # si no especificas normaliza de 1 a nombre_improbable_2pi (gama entera de grises)
 faseMatInt(z::Matrix,gray2pi::Int64)=faseMatInt(z,gray2pi,1) # puedes solo especificar el tope superior
