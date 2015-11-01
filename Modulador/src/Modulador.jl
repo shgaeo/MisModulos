@@ -2,10 +2,10 @@
 
 module Modulador
 
-using Images, Colors#, ImageView (en julia 0.4.0 no sirve ImageView (27oct15))
+using Images, Colors#, ImageView (en julia 0.4.0 ImageView genera muchos warnings (27oct15))
 using FixedPointNumbers
 
-export blazeMat, grayImage, monitor2, inicia, finaliza, thetaMat, faseMatInt, escalon, capturaImg, funBesselJ, rapidBesselJ, thetaMatInt #, canvas2ndScreen, monitor2canvas
+export blazeMat, grayImage, grayImageCorr, monitor2, inicia, finaliza, thetaMat, faseMatInt, escalon, capturaImg, funBesselJ, rapidBesselJ, thetaMatInt #, canvas2ndScreen, monitor2canvas
 
 
 #El contenido del archivo PrepMonit1 lo saqué del notebook 'Pruebas-003_(Imagenes)' en ~/Documentos/Cosas-Ijulia 
@@ -16,6 +16,7 @@ dir2=joinpath(dir,"PrepMonit2")
 dir2canvas=joinpath(dir,"PrepMonit2canvas")
 dir3=joinpath(dir,"PrepMonit3")
 dir4=joinpath(dir,"imagen.png")
+dir5=joinpath(dir,"PatronCorrector")
 
 println("Bienvenido al módulo que controla el SLM.
     Para empezar utiliza la función inicia.
@@ -23,6 +24,13 @@ println("Bienvenido al módulo que controla el SLM.
 println("¿Qué long. de onda desea utilizar (1), (2), (3) ó (4)? \n 1 -> ninguna \n 2 -> 911 nm \n 3 -> 780 nm \n 4 -> 633 nm")
 n=parse(Int64,readline())
 const nombre_improbable_2pi=round(Int64, readcsv(joinpath(dir,"dospi"))[n])
+const patronCorrector= (if n==1
+                           zeros(Int64,600,800)
+                        else
+                           mod(  256-convert(Array{Int64,2}, map(reinterpret,    transpose([Colors.green(imread(joinpath( dir5, filter(x->contains(x,"n$n"), readdir(dir5))[1] ))) ; zeros(FixedPointNumbers.UfixedBase{UInt8,8},8,600)])   ))  ,256)
+                         end)
+
+
 
 #Las siguientes funciones las saqué del notebook 'Pruebas-004_(generarImagenesGrises)' en ~/Documentos/Cosas-Ijulia 
 
@@ -31,27 +39,32 @@ const nombre_improbable_2pi=round(Int64, readcsv(joinpath(dir,"dospi"))[n])
 
 function blazeMat(cols::Integer, rengs::Integer, dosPi::Integer, periodo::Integer)
     matInt=zeros(Int64,rengs,cols)
-    reng=mod( round(Int64,  1+(dosPi-1)*mod(round(Int64,linspace(0,cols-1,cols)),periodo)/(periodo-1)   ) , dosPi)
+    reng=mod( round(Int64,  1+(dosPi-1)*mod(round(Int64,linspace(0,cols-1,cols)),periodo)/(periodo-1)   ) , 256)
     for i=1:rengs
         matInt[i,:]=reng
     end
-    matInt
-    convert(Array{UInt8,2}, matInt)
+    mod(matInt,256)
+    #convert(Array{FixedPointNumbers.UfixedBase{UInt8,8},2},   convert(Array{UInt8,2},matInt)    )
 end
 blazeMat(dosPi::Integer, periodo::Integer)=blazeMat(800, 600, dosPi, periodo)
 blazeMat(periodo::Integer)=blazeMat(800, 600, nombre_improbable_2pi, periodo)
 
 
 
-function grayImage(matInt::Array{Int64,2}) # Toma matriz de Int64 y la convierte en una imagen 8-bits escala grises.
+function grayImageCorr(matInt::Array{Int64,2},corr) # Toma matriz de Int64 y la convierte en una imagen 8-bits escala grises sumándole la corrección del modulador.
+    if corr!=0
+        matInt=mod(Modulador.patronCorrector+matInt,256)
+    end
     mata3=convert(Array{UInt8,2}, matInt);
     matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, mata3)
     Image(matGray)
 end
-function grayImage(matUInt::Array{UInt8,2}) # Igual que el método anterior pero con matriz de UInt8
-    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, matUInt)
-    Image(matGray)
-end
+grayImageCorr(matInt::Array{Int64,2})=grayImageCorr(matInt,1) # Toma matriz de Int64 y la convierte en una imagen 8-bits escala grises sumándole la corrección del modulador.
+grayImage(matInt::Array{Int64,2})=grayImageCorr(matInt,0) # Toma matriz de Int64 y la convierte en una imagen 8-bits escala grises.
+#function grayImage(matUInt::Array{FixedPointNumbers.UfixedBase{UInt8,8},2}) # Igual que anterior pero matriz de UfixedBase{UInt8,8}
+#    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, matUInt)
+#    Image(matGray)
+#end
 
 Images.imwrite(grayImage(ones(Int64,600,800)),dir4) # guarda imágen en blanco para proyectar en modulador al iniciar.
 
@@ -147,11 +160,12 @@ function escalon(nVer::Integer, nHor::Integer, fondo::Integer, dosPi::Integer, p
         error("dosPi debe ser mayor o igual que fondo")
     end
     matInt=zeros(Int64,nHor,nVer)
-    red=fondo+(dosPi-fondo)*int64(mod(int64(linspace(1,nVer,nVer))-1,periodo)/(periodo))
+    red=fondo+(dosPi-fondo)*round(Int64,mod(round(Int64,linspace(1,nVer,nVer))-1,periodo)/(periodo))
     for i=1:nHor
         matInt[i,:]=red
     end
-    convert(Array{UInt8,2}, matInt)
+    mod(matInt,256)
+    #convert(Array{FixedPointNumbers.UfixedBase{UInt8,8},2},   convert(Array{UInt8,2},matInt)    )
 end
 escalon(fondo::Integer, dosPi::Integer, periodo::Integer)=escalon(800,600,fondo,dosPi,periodo)
 escalon(dosPi::Integer, periodo::Integer)=escalon(800,600,1,dosPi,periodo)
@@ -212,8 +226,8 @@ end
 
 ### Lo siguiente es para incluir función Bessel, lo seaqué del notebook 'Pruebas-006_(generarEstructuraHaces)'
 function funBesselJ(n,l,w,th)
-    x=integer(ones(600)*linspace(-399,400,800)')
-    y=integer(linspace(-299,300,600)*ones(800)')
+    x=round(Int64, ones(600)*linspace(-399,400,800)')
+    y=round(Int64, linspace(-299,300,600)*ones(800)')
     xp=cos(th*π/180)*x-sin(th*π/180)*y # rotacion
     yp=sin(th*pi/180)*x+cos(th*pi/180)*y
     besselj(n,sqrt((xp.^2+yp.^2)/w^2)) .* exp(l*1im*atan2(yp,xp))
@@ -231,7 +245,8 @@ end
 
 ### Lo siguiente es para darle vórtice al haz para (junto con axicón) generar el Bessel
 function thetaMatInt(n,th)
-    mod(n*(faseMatInt(thetaMat(th))-1),nombre_improbable_2pi)+1
+    matInt=mod(n*(faseMatInt(thetaMat(th))-1),nombre_improbable_2pi)+1
+    mod(matInt,256)
 end
 thetaMatInt(n)=thetaMatInt(n,0)
 
