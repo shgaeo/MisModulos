@@ -27,7 +27,7 @@ const nombre_improbable_2pi=round(Int64, readcsv(joinpath(dir,"dospi"))[n])
 const patronCorrector= (if n==1
                            zeros(Int64,600,800)
                         else
-                           mod(  256-convert(Array{Int64,2}, map(reinterpret,    transpose([Colors.green(imread(joinpath( dir5, filter(x->contains(x,"n$n"), readdir(dir5))[1] ))) ; zeros(FixedPointNumbers.UfixedBase{UInt8,8},8,600)])   ))  ,256)
+                           mod(  256-convert(Array{Int64,2}, map(reinterpret,    transpose([Colors.green(load(joinpath( dir5, filter(x->contains(x,"n$n"), readdir(dir5))[1] ))) ; zeros(FixedPointNumbers.UFixed{UInt8,8},8,600)])   ))  ,256)
                          end)
 
 
@@ -44,7 +44,7 @@ function blazeMat(cols::Integer, rengs::Integer, dosPi::Integer, periodo::Intege
         matInt[i,:]=reng
     end
     mod(matInt,256)
-    #convert(Array{FixedPointNumbers.UfixedBase{UInt8,8},2},   convert(Array{UInt8,2},matInt)    )
+    #convert(Array{FixedPointNumbers.UFixed{UInt8,8},2},   convert(Array{UInt8,2},matInt)    )
 end
 blazeMat(dosPi::Integer, periodo::Integer)=blazeMat(800, 600, dosPi, periodo)
 blazeMat(periodo::Integer)=blazeMat(800, 600, nombre_improbable_2pi, periodo)
@@ -56,18 +56,18 @@ function grayImageCorr(matInt::Array{Int64,2},corr) # Toma matriz de Int64 y la 
         matInt=mod(Modulador.patronCorrector+matInt,256)
     end
     mata3=convert(Array{UInt8,2}, matInt);
-    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, mata3)
+    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UFixed{UInt8,8}},2}, mata3)
     Image(matGray)
 end
 grayImageCorr(matInt::Array{Int64,2})=grayImageCorr(matInt,1) # Toma matriz de Int64 y la convierte en una imagen 8-bits escala grises sumándole la corrección del modulador.
 grayImage(matInt::Array{Int64,2})=grayImageCorr(matInt,0) # Toma matriz de Int64 y la convierte en una imagen 8-bits escala grises.
-#function grayImage(matUInt::Array{FixedPointNumbers.UfixedBase{UInt8,8},2}) # Igual que anterior pero matriz de UfixedBase{UInt8,8}
-#    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UfixedBase{UInt8,8}},2}, matUInt)
+#function grayImage(matUInt::Array{FixedPointNumbers.UFixed{UInt8,8},2}) # Igual que anterior pero matriz de UFixed{UInt8,8}
+#    matGray=convert(Array{ColorTypes.Gray{FixedPointNumbers.UFixed{UInt8,8}},2}, matUInt)
 #    Image(matGray)
 #end
 
-Images.imwrite(grayImage(ones(Int64,600,800)),dir4) # guarda imágen en blanco para proyectar en modulador al iniciar.
-
+#Images.imwrite(grayImage(ones(Int64,600,800)),dir4) # guarda imágen en blanco para proyectar en modulador al iniciar.
+save(dir4,grayImage(ones(Int64,600,800)))
 
 
 
@@ -88,7 +88,8 @@ end
 function monitor2(imagen::Image)
     ##### Esto es para versión con Eye of Gnome
     if size(imagen.data)==(600,800)
-        Images.imwrite(imagen,dir4)
+        #Images.imwrite(imagen,dir4)
+        save(dir4,imagen)
     else
         error("Deben ser imágenes de 800x600")
     end
@@ -97,7 +98,8 @@ function monitor2(imagen::Image)
 end
 
 function finaliza()
-    Images.imwrite(grayImage(ones(Int64,600,800)),dir4)
+    #Images.imwrite(grayImage(ones(Int64,600,800)),dir4)
+    save(dir4,grayImage(ones(Int64,600,800)))
     run(`bash $(Modulador.dir3)`)
 end
 
@@ -165,7 +167,7 @@ function escalon(nVer::Integer, nHor::Integer, fondo::Integer, dosPi::Integer, p
         matInt[i,:]=red
     end
     mod(matInt,256)
-    #convert(Array{FixedPointNumbers.UfixedBase{UInt8,8},2},   convert(Array{UInt8,2},matInt)    )
+    #convert(Array{FixedPointNumbers.UFixed{UInt8,8},2},   convert(Array{UInt8,2},matInt)    )
 end
 escalon(fondo::Integer, dosPi::Integer, periodo::Integer)=escalon(800,600,fondo,dosPi,periodo)
 escalon(dosPi::Integer, periodo::Integer)=escalon(800,600,1,dosPi,periodo)
@@ -180,12 +182,12 @@ function calibrar()
     println("Al finalizar la calibración debes reiniciar Julia para que se tomen en cuenta los cambios")
     calibrarAux()
     dir7=joinpath(dirCal,string(now()))
-    ima1=float(Images.green(Images.data(Images.imread(dir7*"--1.jpeg"))))
+    ima1=float(Images.green(Images.data(Images.load(dir7*"--1.jpeg"))))
     ima2=similar(ima1)
     lista=zeros(256)
     #lista=Array{Float64,2}[]
     for i=2:256
-        ima2=float(Images.green(Images.data(Images.imread(dir7*"--$i.jpeg"))))
+        ima2=float(Images.green(Images.data(Images.load(dir7*"--$i.jpeg"))))
         lista[i]=sum(abs(ima1-ima2))
     end
     nuevo2pi=length(lista)+1-findmin(reverse(lista))[2] # Lo recorro al revés para obtener el mínimo más alejado
